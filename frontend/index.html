@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Interview</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>AI Interview</h1>
+        <div id="status" class="status disconnected">Disconnected</div>
+      </header>
+
+      <main>
+        <!-- Setup Panel -->
+        <div class="setup-section" id="auth-section">
+          <div class="setup-grid">
+            <!-- Left: Voice & Style -->
+            <div class="setup-card">
+              <h3>Candidate</h3>
+              <div class="field">
+                <label for="candidateName">Your Name</label>
+                <input type="text" id="candidateName" value="Steven" placeholder="Enter candidate name" />
+              </div>
+
+              <h3 style="margin-top: 20px;">Voice Settings</h3>
+              <div class="field">
+                <label for="voiceSelect">Voice</label>
+                <select id="voiceSelect">
+                  <option value="Charon">Charon (Male, Calm)</option>
+                  <option value="Puck">Puck (Male, Energetic)</option>
+                  <option value="Fenrir">Fenrir (Male, Deep)</option>
+                  <option value="Orus">Orus (Male)</option>
+                  <option value="Perseus">Perseus (Male)</option>
+                  <option value="Kore">Kore (Female)</option>
+                  <option value="Aoede">Aoede (Female, Warm)</option>
+                  <option value="Leda">Leda (Female)</option>
+                </select>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="accentSelect">Accent</label>
+                  <select id="accentSelect">
+                    <option value="">Default</option>
+                    <option value="American">American</option>
+                    <option value="British">British</option>
+                    <option value="Australian">Australian</option>
+                    <option value="Irish">Irish</option>
+                    <option value="Indian">Indian</option>
+                    <option value="Southern American">Southern</option>
+                    <option value="New York">New York</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="paceSelect">Speed</label>
+                  <select id="paceSelect">
+                    <option value="">Normal</option>
+                    <option value="slow">Slow</option>
+                    <option value="fast">Fast</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="languageSelect">Language</label>
+                  <select id="languageSelect">
+                    <option value="">English</option>
+                    <option value="Mandarin Chinese">Chinese</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="French">French</option>
+                    <option value="Japanese">Japanese</option>
+                    <option value="Korean">Korean</option>
+                    <option value="German">German</option>
+                    <option value="Portuguese">Portuguese</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="toneSelect">Tone</label>
+                  <select id="toneSelect">
+                    <option value="">Neutral</option>
+                    <option value="friendly and warm">Friendly</option>
+                    <option value="professional and formal">Professional</option>
+                    <option value="casual and relaxed">Casual</option>
+                    <option value="enthusiastic and energetic">Enthusiastic</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: System Prompt -->
+            <div class="setup-card">
+              <h3>System Prompt</h3>
+              <textarea
+                id="systemPrompt"
+                placeholder="The AI interviewer's instructions will be loaded here..."
+              ></textarea>
+            </div>
+          </div>
+
+          <button id="connectBtn" class="btn btn-lg">Start Interview</button>
+        </div>
+
+        <!-- Session End -->
+        <div class="session-end-section hidden" id="session-end-section">
+          <h2>Interview Ended</h2>
+          <p>Thanks for completing the interview session.</p>
+          <button id="restartBtn" class="btn btn-lg">Start New Interview</button>
+        </div>
+
+        <!-- Active Session -->
+        <div class="app-section hidden" id="app-section">
+          <div class="app-grid">
+            <div class="left-panel">
+              <div class="video-container">
+                <div id="video-placeholder">Camera off</div>
+                <video id="video-preview" autoplay playsinline muted></video>
+                <canvas id="video-canvas" style="display: none"></canvas>
+              </div>
+
+              <div class="controls">
+                <button id="micBtn" class="btn">Start Mic</button>
+                <button id="cameraBtn" class="btn">Start Camera</button>
+                <button id="screenBtn" class="btn">Share Screen</button>
+                <button id="disconnectBtn" class="btn danger">End Interview</button>
+              </div>
+            </div>
+
+            <div class="right-panel">
+              <div class="chat-log" id="chat-log"></div>
+              <div class="input-area">
+                <input type="text" id="textInput" placeholder="Type a message..." />
+                <button id="sendBtn" class="btn">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="/static/media-handler.js"></script>
+    <script src="/static/gemini-client.js"></script>
+    <script src="/static/main.js"></script>
+  </body>
+</html>
