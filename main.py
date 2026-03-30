@@ -10,6 +10,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from google.genai import types
+from pydantic import BaseModel
+
 from gemini_live import GeminiLive
 
 load_dotenv()
@@ -23,6 +26,37 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL = os.getenv("MODEL", "gemini-3.1-flash-live-preview")
 
 PROMPT_FILE = Path(__file__).resolve().parent.parent / "prompt.md"
+
+
+class EndCallResult(BaseModel):
+    ended: bool
+
+
+END_CALL_TOOL = types.FunctionDeclaration(
+    name="end_call",
+    description=(
+        "Terminate the interview session and hang up. "
+        "You MUST call this function when the user says goodbye, "
+        "indicates they are done, or the interview has naturally concluded. "
+        "Say your farewell first, then immediately call this function."
+    ),
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "reason": types.Schema(
+                type=types.Type.STRING,
+                description="Why the call is ending, e.g. 'user said goodbye', 'interview complete'.",
+            ),
+        },
+        required=["reason"],
+    ),
+)
+
+
+def handle_end_call(reason: str = "") -> dict:
+    logger.info(f"end_call invoked: reason={reason}")
+    result = EndCallResult(ended=True)
+    return result.model_dump()
 
 
 def load_prompt():
@@ -93,12 +127,22 @@ async def websocket_endpoint(websocket: WebSocket):
     async def audio_interrupt_callback():
         pass
 
+    end_call_instruction = (
+        "\n\n## Session Termination\n"
+        "You have an `end_call` tool available. "
+        "When the user says goodbye, thanks you and leaves, or the interview is complete, "
+        "you MUST call the `end_call` function to terminate the session. "
+        "First say a brief farewell, then call `end_call` with a reason."
+    )
+
     gemini_client = GeminiLive(
         api_key=GEMINI_API_KEY,
         model=MODEL,
         input_sample_rate=16000,
         voice_name=voice_name,
-        system_instruction=system_instruction,
+        system_instruction=system_instruction + end_call_instruction,
+        tools=[types.Tool(function_declarations=[END_CALL_TOOL])],
+        tool_mapping={"end_call": handle_end_call},
     )
 
     async def receive_from_client():

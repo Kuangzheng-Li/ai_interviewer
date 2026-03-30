@@ -22,10 +22,10 @@ const paceSelect = document.getElementById("paceSelect");
 const languageSelect = document.getElementById("languageSelect");
 const toneSelect = document.getElementById("toneSelect");
 const candidateNameInput = document.getElementById("candidateName");
+const welcomeMessageInput = document.getElementById("welcomeMessage");
 
 let currentGeminiMessageDiv = null;
 let currentUserMessageDiv = null;
-let pendingWelcomeMessage = "";
 let defaultCandidateName = "Steven";
 
 (async function loadDefaultConfig() {
@@ -36,7 +36,7 @@ let defaultCandidateName = "Steven";
       systemPrompt.value = config.system_instruction;
     }
     if (config.welcome_message) {
-      pendingWelcomeMessage = config.welcome_message;
+      welcomeMessageInput.value = config.welcome_message;
     }
   } catch (e) {
     console.warn("Could not load default config:", e);
@@ -78,7 +78,10 @@ const geminiClient = new GeminiClient({
 });
 
 function handleJsonMessage(msg) {
-  if (msg.type === "interrupted") {
+  if (msg.type === "end_call") {
+    waitForAudioThenDisconnect();
+    return;
+  } else if (msg.type === "interrupted") {
     mediaHandler.stopAudioPlayback();
     currentGeminiMessageDiv = null;
     currentUserMessageDiv = null;
@@ -139,8 +142,9 @@ function buildSystemInstruction() {
     instruction += "\n\n## Voice Style\n" + voiceParts.join("\n");
   }
 
-  if (pendingWelcomeMessage) {
-    const welcome = replaceName(pendingWelcomeMessage, name);
+  const welcomeText = welcomeMessageInput.value.trim();
+  if (welcomeText) {
+    const welcome = replaceName(welcomeText, name);
     instruction +=
       "\n\n## Opening Message\n" +
       "When the conversation starts, immediately greet the candidate by saying the following (you may rephrase slightly to sound natural):\n\n" +
@@ -169,7 +173,7 @@ connectBtn.onclick = async () => {
 };
 
 disconnectBtn.onclick = () => {
-  geminiClient.disconnect();
+  waitForAudioThenDisconnect();
 };
 
 micBtn.onclick = async () => {
@@ -261,6 +265,19 @@ function sendText() {
     appendMessage("user", text);
     textInput.value = "";
   }
+}
+
+function waitForAudioThenDisconnect() {
+  const poll = setInterval(() => {
+    const allDone =
+      mediaHandler.scheduledSources.length === 0 ||
+      (mediaHandler.audioContext &&
+        mediaHandler.audioContext.currentTime >= mediaHandler.nextStartTime);
+    if (allDone) {
+      clearInterval(poll);
+      geminiClient.disconnect();
+    }
+  }, 200);
 }
 
 function resetUI() {

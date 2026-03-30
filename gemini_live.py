@@ -40,7 +40,7 @@ class GeminiLive:
             tools=self.tools,
         )
         
-        logger.info(f"Connecting to Gemini Live with model={self.model}")
+        logger.info(f"Connecting to Gemini Live with model={self.model}, tools={[t.function_declarations[0].name for t in self.tools if t.function_declarations] if self.tools else 'none'}")
         try:
           async with self.client.aio.live.connect(model=self.model, config=config) as session:
             logger.info("Gemini Live session opened successfully")
@@ -89,7 +89,6 @@ class GeminiLive:
                         async for response in session.receive():
                             logger.debug(f"Received response from Gemini: {response}")
                             
-                            # Log the raw response type for debugging
                             if response.go_away:
                                 logger.warning(f"Received GoAway from Gemini: {response.go_away}")
                             if response.session_resumption_update:
@@ -126,6 +125,7 @@ class GeminiLive:
 
                             if tool_call:
                                 function_responses = []
+                                end_call_triggered = False
                                 for fc in tool_call.function_calls:
                                     func_name = fc.name
                                     args = fc.args or {}
@@ -147,8 +147,41 @@ class GeminiLive:
                                             response={"result": result}
                                         ))
                                         await event_queue.put({"type": "tool_call", "name": func_name, "args": args, "result": result})
+
+                                        if func_name == "end_call" and isinstance(result, dict) and result.get("ended"):
+                                            end_call_triggered = True
                                 
                                 await session.send_tool_response(function_responses=function_responses)
+
+                                if end_call_triggered:
+                                    logger.info("end_call triggered, draining remaining audio before closing")
+                                    try:
+                                        drain_timeout = 3.0
+                                        while True:
+                                            try:
+                                                remaining = await asyncio.wait_for(
+                                                    session.receive().__anext__(),
+                                                    timeout=drain_timeout,
+                                                )
+                                            except (asyncio.TimeoutError, StopAsyncIteration):
+                                                break
+                                            sc = remaining.server_content
+                                            if sc and sc.model_turn:
+                                                for part in sc.model_turn.parts:
+                                                    if part.inline_data:
+                                                        if inspect.iscoroutinefunction(audio_output_callback):
+                                                            await audio_output_callback(part.inline_data.data)
+                                                        else:
+                                                            audio_output_callback(part.inline_data.data)
+                                            if sc and sc.output_transcription and sc.output_transcription.text:
+                                                await event_queue.put({"type": "gemini", "text": sc.output_transcription.text})
+                                            if sc and sc.turn_complete:
+                                                break
+                                    except Exception as e:
+                                        logger.warning(f"Error draining audio after end_call: {e}")
+                                    logger.info("Sending end_call event to client")
+                                    await event_queue.put({"type": "end_call"})
+                                    return
                         
                         # session.receive() iterator ended (e.g. after turn_complete) — re-enter to keep listening
                         logger.debug("Gemini receive iterator completed, re-entering receive loop")
